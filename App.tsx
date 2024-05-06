@@ -1,117 +1,118 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
   View,
+  Image,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
 } from 'react-native';
+import RNFS from 'react-native-fs';
+// @ts-ignore
+import Reactotron from 'reactotron-react-native/src';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+Reactotron.configure().useReactNative().connect();
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+const DummyImages = [
+  'https://dummyimage.com/600x400/000/fff&text=Image+1',
+  'https://dummyimage.com/600x400/000/fff&text=Image+2',
+  'https://dummyimage.com/600x400/000/fff&text=Image+3',
+];
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+const App = () => {
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [localImageURIs, setLocalImageURIs] = useState([]);
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  useEffect(() => {
+    preloadImages();
+  }, []);
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  const preloadImages = async () => {
+    try {
+      const promises = DummyImages.map(async (uri, index) => {
+        const localFilePath = `${RNFS.TemporaryDirectoryPath}/image_${index}.jpg`;
+        await RNFS.downloadFile({fromUrl: uri, toFile: localFilePath}).promise;
+        return localFilePath;
+      });
+
+      const localURIs = await Promise.all(promises);
+      setLocalImageURIs(localURIs);
+      setImagesLoaded(true);
+    } catch (error) {
+      console.error('Error preloading images:', error);
+    }
+  };
+
+  const handleDownload = async (index: number) => {
+    try {
+      const localURI = localImageURIs[index];
+      console.log(`localURI: ${localURI}`);
+      if (!localURI) {
+        console.error('Local URI not found for image index:', index);
+        return;
+      }
+
+      console.log('localURI: ', localURI);
+
+      const downloadDir = `${RNFS.DownloadDirectoryPath}`;
+      const fileName = `image_${index}.jpg`;
+      const downloadPath = `${downloadDir}/${fileName}`;
+
+      const directoryExists = await RNFS.exists(downloadDir);
+      if (!directoryExists) {
+        await RNFS.mkdir(downloadDir);
+      }
+
+      const response = await RNFS.downloadFile({
+        fromUrl: DummyImages[index],
+        toFile: downloadPath,
+      }).promise;
+
+      if (response.statusCode === 200) {
+        console.log('Image downloaded successfully:', downloadPath);
+      } else {
+        console.error('Failed to download image:', response);
+      }
+    } catch (error) {
+      console.error('Error downloading image:', error);
+    }
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
+    <View style={styles.container}>
+      {imagesLoaded ? (
+        DummyImages.map((uri, index) => (
+          <View key={index}>
+            <Image source={{uri}} style={styles.image} resizeMode="cover" />
+            <TouchableOpacity onPress={() => handleDownload(index)}>
+              <Text style={styles.downloadButton}>Download Image</Text>
+            </TouchableOpacity>
+          </View>
+        ))
+      ) : (
+        <View>
+          <Text>Loading...</Text>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      )}
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f0f0',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  image: {
+    width: 200,
+    height: 200,
+    marginBottom: 10,
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+  downloadButton: {
+    marginTop: 5,
+    color: 'blue',
+    textDecorationLine: 'underline',
   },
 });
 
