@@ -2,7 +2,7 @@
 
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
-![Android Preview](docs/android-preview.gif)
+<img src="docs/android-preview.gif" alt="Android Preview" style="width: 100%;">
 
 
 # Getting Started
