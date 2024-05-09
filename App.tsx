@@ -42,50 +42,43 @@ const App = () => {
   }, []);
 
   const preloadImages = async () => {
-    try {
-      // Initialize the labels as "Downloaded" if the file needs to be downloaded
-      setSourceLabels(DummyImages.map(() => HTTP_DOWNLOAD_LABEL));
+    setLocalImageURIs(DummyImages);
+    setSourceLabels(DummyImages.map(() => HTTP_DOWNLOAD_LABEL));
+    setImagesLoaded(true);
 
-      const urisAndLabels = await Promise.all(
-        DummyImages.map(async (uri, index) => {
-          const localFilePath = `${RNFS.TemporaryDirectoryPath}/image_${index}.jpg`;
-          const fileExists = await RNFS.exists(localFilePath);
+    DummyImages.forEach(async (uri, index) => {
+      const localFilePath = `${RNFS.TemporaryDirectoryPath}/image_${index}.jpg`;
+      const fileExists = await RNFS.exists(localFilePath);
 
-          if (!fileExists) {
-            // If the file does not exist, download and initially mark it as downloaded
-            await RNFS.downloadFile({
-              fromUrl: uri,
-              toFile: localFilePath,
-            }).promise;
-          }
+      if (!fileExists) {
+        // Adding a delay before downloading each image
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1000 ms delay
+        await RNFS.downloadFile({
+          fromUrl: uri,
+          toFile: localFilePath,
+        }).promise;
+      }
 
-          // Update the label to "Cached" immediately after confirming it exists or after downloading
-          setSourceLabels((prevLabels) =>
-            prevLabels.map((label, labelIndex) =>
-              labelIndex === index ? "Cached" : label
-            )
-          );
-
-          return {
-            localURI: localFilePath,
-            label: fileExists ? CACHED_LABEL : HTTP_DOWNLOAD_LABEL,
-          };
-        })
+      setLocalImageURIs(prevURIs =>
+          prevURIs.map((currentURI, uriIndex) =>
+              uriIndex === index ? `file://${localFilePath}` : currentURI
+          )
       );
-
-      setLocalImageURIs(urisAndLabels.map((item) => item.localURI));
-      setImagesLoaded(true);
-    } catch (error) {
-      console.error("Error preloading images:", error);
-    }
+      setSourceLabels(prevLabels =>
+          prevLabels.map((label, labelIndex) =>
+              labelIndex === index ? CACHED_LABEL : label
+          )
+      );
+    });
   };
+
 
   const getImageSource = (index: number): string => {
     const localURI = localImageURIs[index];
     return localURI ? `file://${localURI}` : DummyImages[index];
   };
 
-// we can improve the handle download function to fetch the image from the source if it does not exist
+  // todo: fwe can improve the handle download function to fetch the image from the source if it does not exist
   const handleDownload = async (index: number) => {
     try {
       const localURI = localImageURIs[index];
@@ -150,15 +143,11 @@ const App = () => {
         {imagesLoaded ? (
           localImageURIs.map((uri, index) => (
             <View key={index} style={styles.imageContainer}>
-              <Image
-                source={{ uri: getImageSource(index) }}
-                style={styles.image}
-                resizeMode="cover"
-              />
+              <Image source={{ uri }} style={styles.image} resizeMode="cover" />
               <Text style={styles.label}>{sourceLabels[index]}</Text>
               <TouchableOpacity onPress={() => handleDownload(index)}>
                 <Text style={styles.downloadButton}>
-                  {getImageSource(index)}
+                  {uri}
                 </Text>
               </TouchableOpacity>
             </View>
