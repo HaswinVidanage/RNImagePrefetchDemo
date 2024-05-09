@@ -2,8 +2,9 @@
 
 This is a demo created to show how we can download a cached image to the device.
 
-[![Demo]](docs/demo.mov)
-
+<video width="100%" height="100%" controls>
+  <source src="/docs/demo.mov" type="video/mp4">
+</video>
 
 --- 
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
