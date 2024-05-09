@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Image,
@@ -25,6 +25,9 @@ const DummyImages = [
   "https://dummyimage.com/600x400/000/fff&text=08",
 ];
 
+const HTTP_DOWNLOAD_LABEL = "http";
+const CACHED_LABEL = "cached";
+
 // todo fix the cache glitch
 const App = () => {
   const [imagesLoaded, setImagesLoaded] = useState(false);
@@ -40,25 +43,37 @@ const App = () => {
 
   const preloadImages = async () => {
     try {
+      // Initialize the labels as "Downloaded" if the file needs to be downloaded
+      setSourceLabels(DummyImages.map(() => HTTP_DOWNLOAD_LABEL));
+
       const urisAndLabels = await Promise.all(
         DummyImages.map(async (uri, index) => {
           const localFilePath = `${RNFS.TemporaryDirectoryPath}/image_${index}.jpg`;
-          console.log("localFilePath: ", localFilePath);
-          let label = "Cached";
           const fileExists = await RNFS.exists(localFilePath);
+
           if (!fileExists) {
+            // If the file does not exist, download and initially mark it as downloaded
             await RNFS.downloadFile({
               fromUrl: uri,
               toFile: localFilePath,
             }).promise;
-            label = "Downloaded";
           }
-          return {localURI: localFilePath, label};
-        }),
+
+          // Update the label to "Cached" immediately after confirming it exists or after downloading
+          setSourceLabels((prevLabels) =>
+            prevLabels.map((label, labelIndex) =>
+              labelIndex === index ? "Cached" : label
+            )
+          );
+
+          return {
+            localURI: localFilePath,
+            label: fileExists ? CACHED_LABEL : HTTP_DOWNLOAD_LABEL,
+          };
+        })
       );
 
-      setLocalImageURIs(urisAndLabels.map(item => item.localURI));
-      setSourceLabels(urisAndLabels.map(item => item.label));
+      setLocalImageURIs(urisAndLabels.map((item) => item.localURI));
       setImagesLoaded(true);
     } catch (error) {
       console.error("Error preloading images:", error);
@@ -70,6 +85,7 @@ const App = () => {
     return localURI ? `file://${localURI}` : DummyImages[index];
   };
 
+// we can improve the handle download function to fetch the image from the source if it does not exist
   const handleDownload = async (index: number) => {
     try {
       const localURI = localImageURIs[index];
@@ -98,7 +114,7 @@ const App = () => {
           const fileName = `image_${index}.jpg`;
           const downloadPath = `${downloadDir}/${fileName}`;
           await RNFS.copyFile(uri, downloadPath);
-        }),
+        })
       );
 
       console.log("All images copied to downloads folder");
@@ -109,10 +125,10 @@ const App = () => {
 
   const clearCache = async () => {
     try {
-      const promises = localImageURIs.map(uri => RNFS.unlink(uri));
+      const promises = localImageURIs.map((uri) => RNFS.unlink(uri));
       await Promise.all(promises);
       console.log("Cache cleared successfully");
-      setSourceLabels(Array(sourceLabels.length).fill("Downloaded"));
+      setSourceLabels(Array(sourceLabels.length).fill(HTTP_DOWNLOAD_LABEL));
     } catch (error) {
       console.error("Failed to clear cache:", error);
     } finally {
@@ -135,13 +151,15 @@ const App = () => {
           localImageURIs.map((uri, index) => (
             <View key={index} style={styles.imageContainer}>
               <Image
-                source={{uri: getImageSource(index)}}
+                source={{ uri: getImageSource(index) }}
                 style={styles.image}
                 resizeMode="cover"
               />
               <Text style={styles.label}>{sourceLabels[index]}</Text>
               <TouchableOpacity onPress={() => handleDownload(index)}>
-                <Text style={styles.downloadButton}>Download Image</Text>
+                <Text style={styles.downloadButton}>
+                  {getImageSource(index)}
+                </Text>
               </TouchableOpacity>
             </View>
           ))
