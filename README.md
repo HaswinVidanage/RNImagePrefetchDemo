@@ -1,5 +1,11 @@
 # RN Image Pre Fetch Demo
 
+This is a demo created to show how we can download a cached image to the device.
+
+[![Demo]](docs/demo.mov)
+
+
+--- 
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 
